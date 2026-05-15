@@ -1,479 +1,239 @@
 import sys
+import ast
 import networkx as nx
 import matplotlib.pyplot as plt
 
 
 # =========================
-# TASK 1: process_data()
+# DOT EXPORT WITHOUT PYDOT
 # =========================
-def build_cfg_task1():
+def save_dot_file(graph, filename):
+    with open(filename, "w", encoding="utf-8") as file:
+        file.write("digraph CFG {\n")
+        file.write('    rankdir=TB;\n')
+        file.write('    node [shape=ellipse, style=filled, fillcolor=lightblue];\n')
+
+        for node, data in graph.nodes(data=True):
+            label = data.get("label", node)
+            label = label.replace('"', '\\"')
+            label = label.replace("\n", "\\n")
+            file.write(f'    {node} [label="{label}"];\n')
+
+        for source, target in graph.edges():
+            file.write(f"    {source} -> {target};\n")
+
+        file.write("}\n")
+
+
+# =========================
+# AST ANALYSIS FOR AUTH.PY
+# =========================
+def analyze_python_file(filepath):
+    with open(filepath, "r", encoding="utf-8") as file:
+        code = file.read()
+
+    tree = ast.parse(code)
+
+    # Беремо першу функцію з файлу
+    func = tree.body[0]
+
     graph = nx.DiGraph()
 
-    # CFG nodes
-    graph.add_node("Start")
-    graph.add_node("total = 0")
-    graph.add_node("for i in range(len(data))")
-    graph.add_node("if data[i] < 0")
-    graph.add_node("continue")
-    graph.add_node("for j in range(data[i])")
-    graph.add_node("if j % 2 == 0")
-    graph.add_node("total += j")
-    graph.add_node("return total")
-    graph.add_node("End")
+    previous_nodes = []
+    counter = 0
 
-    # CFG edges
-    graph.add_edge("Start", "total = 0")
-    graph.add_edge("total = 0", "for i in range(len(data))")
+    print("\nAST statements:\n")
 
-    graph.add_edge(
-        "for i in range(len(data))",
-        "if data[i] < 0",
-        label="True"
-    )
+    for statement in func.body:
+        label = ast.unparse(statement)
 
-    graph.add_edge(
-        "for i in range(len(data))",
-        "return total",
-        label="False"
-    )
+        print(label)
 
-    graph.add_edge(
-        "if data[i] < 0",
-        "continue",
-        label="True"
-    )
+        node = f"n{counter}"
+        graph.add_node(node, label=label)
 
-    graph.add_edge(
-        "if data[i] < 0",
-        "for j in range(data[i])",
-        label="False"
-    )
+        for previous in previous_nodes:
+            graph.add_edge(previous, node)
 
-    graph.add_edge(
-        "continue",
-        "for i in range(len(data))"
-    )
+        previous_nodes = [node]
+        counter += 1
 
-    graph.add_edge(
-        "for j in range(data[i])",
-        "if j % 2 == 0",
-        label="True"
-    )
-
-    graph.add_edge(
-        "for j in range(data[i])",
-        "for i in range(len(data))",
-        label="False"
-    )
-
-    graph.add_edge(
-        "if j % 2 == 0",
-        "total += j",
-        label="True"
-    )
-
-    graph.add_edge(
-        "if j % 2 == 0",
-        "for j in range(data[i])",
-        label="False"
-    )
-
-    graph.add_edge(
-        "total += j",
-        "for j in range(data[i])"
-    )
-
-    graph.add_edge("return total", "End")
-
-    return graph
-
-
-def draw_cfg_task1(graph):
-    position = nx.spring_layout(
-        graph,
-        seed=7,
-        k=0.7,
-        scale=2.2
-    )
-
-    # Manual adjustment of node positions
-    position["End"] = position["End"] * 0.80
-    position["return total"] = position["return total"] * 1.20
-
-    plt.figure(figsize=(18, 11))
-
-    nx.draw(
-        graph,
-        position,
-        with_labels=True,
-        node_size=6500,
-        font_size=11,
-        arrows=True,
-        arrowsize=26,
-        width=1.8
-    )
-
-    edge_labels = nx.get_edge_attributes(graph, "label")
-
-    custom_edge = ("for j in range(data[i])", "for i in range(len(data))")
-    edge_labels_without_custom = edge_labels.copy()
-
-    if custom_edge in edge_labels_without_custom:
-        del edge_labels_without_custom[custom_edge]
-
-    nx.draw_networkx_edge_labels(
-        graph,
-        position,
-        edge_labels=edge_labels_without_custom,
-        font_size=11,
-        bbox=dict(facecolor="white", edgecolor="none", alpha=0.8)
-    )
-
-    x1, y1 = position["for j in range(data[i])"]
-    x2, y2 = position["for i in range(len(data))"]
-
-    manual_x = (x1 + x2) / 2 - 0.25
-    manual_y = (y1 + y2) / 2 + 0.30
-
-    plt.text(
-        manual_x,
-        manual_y,
-        "False",
-        fontsize=11,
-        bbox=dict(facecolor="white", edgecolor="none", alpha=0.8)
-    )
-
-    plt.title("CFG for process_data()", fontsize=18)
-    plt.axis("off")
-    plt.tight_layout()
-    plt.savefig("cfg_process_data.png", dpi=300)
-    plt.show()
-
-    print("CFG for Task 1 saved as cfg_process_data.png")
-
-
-def print_routes_task1(graph):
-    routes = list(nx.all_simple_paths(graph, source="Start", target="End"))
-
-    print("CFG routes for Task 1:")
-    for index, route in enumerate(routes, start=1):
-        print(f"Route {index}:")
-        print(" -> ".join(route))
-        print()
-
-
-# =========================
-# TASK 2: process_matrix()
-# =========================
-def build_cfg_task2():
-    graph = nx.DiGraph()
-
-    # CFG nodes
-    graph.add_node("Start")
-    graph.add_node("count = 0")
-    graph.add_node("for i in range(len(matrix))")
-    graph.add_node("for j in range(len(matrix[i]))")
-    graph.add_node("if matrix[i][j] > 0")
-    graph.add_node("for k in range(matrix[i][j])")
-    graph.add_node("count += k % 3")
-    graph.add_node("return count")
-    graph.add_node("End")
-
-    # CFG edges
-    graph.add_edge("Start", "count = 0")
-
-    graph.add_edge(
-        "count = 0",
-        "for i in range(len(matrix))"
-    )
-
-    graph.add_edge(
-        "for i in range(len(matrix))",
-        "for j in range(len(matrix[i]))",
-        label="True"
-    )
-
-    graph.add_edge(
-        "for i in range(len(matrix))",
-        "return count",
-        label="False"
-    )
-
-    graph.add_edge(
-        "for j in range(len(matrix[i]))",
-        "if matrix[i][j] > 0",
-        label="True"
-    )
-
-    graph.add_edge(
-        "for j in range(len(matrix[i]))",
-        "for i in range(len(matrix))",
-        label="False"
-    )
-
-    graph.add_edge(
-        "if matrix[i][j] > 0",
-        "for k in range(matrix[i][j])",
-        label="True"
-    )
-
-    graph.add_edge(
-        "if matrix[i][j] > 0",
-        "for j in range(len(matrix[i]))",
-        label="False"
-    )
-
-    graph.add_edge(
-        "for k in range(matrix[i][j])",
-        "count += k % 3",
-        label="True"
-    )
-
-    graph.add_edge(
-        "for k in range(matrix[i][j])",
-        "for j in range(len(matrix[i]))",
-        label="False"
-    )
-
-    graph.add_edge(
-        "count += k % 3",
-        "for k in range(matrix[i][j])"
-    )
-
-    graph.add_edge("return count", "End")
-
-    return graph
-
-
-def draw_cfg_task2(graph):
-    position = {
-        "Start": (0, 8),
-        "count = 0": (2, 6),
-        "for i in range(len(matrix))": (0, 4),
-        "for j in range(len(matrix[i]))": (5, 4),
-        "if matrix[i][j] > 0": (9, 4),
-        "for k in range(matrix[i][j])": (9, 0),
-        "count += k % 3": (9, -4),
-        "return count": (-5, 4),
-        "End": (-7, 1)
-    }
-
-    plt.figure(figsize=(22, 14))
-
-    nx.draw(
-        graph,
-        position,
-        with_labels=True,
-        node_size=8500,
-        font_size=9,
-        arrows=True,
-        arrowsize=24,
-        width=1.8
-    )
-
-    edge_labels = nx.get_edge_attributes(graph, "label")
-
-    nx.draw_networkx_edge_labels(
-        graph,
-        position,
-        edge_labels=edge_labels,
-        font_size=10,
-        bbox=dict(
-            facecolor="white",
-            edgecolor="none",
-            alpha=0.8
+    paths = list(
+        nx.all_simple_paths(
+            graph,
+            source="n0",
+            target=previous_nodes[0]
         )
     )
 
-    plt.title(
-        "CFG for process_matrix()",
-        fontsize=18
-    )
+    print("\nExecution paths (AST):")
+    for path in paths:
+        print(path)
 
-    plt.axis("off")
-    plt.tight_layout()
-    plt.savefig("cfg_process_matrix.png", dpi=300)
-    plt.show()
+    save_dot_file(graph, "cfg_ast.dot")
 
-    print("CFG for Task 2 saved as cfg_process_matrix.png")
+    complexity = graph.number_of_edges() - graph.number_of_nodes() + 2
 
-
-def print_routes_task2():
-    print("Basic independent routes for Task 2:\n")
-
-    routes = [
-        [
-            "Start",
-            "count = 0",
-            "for i in range(len(matrix))",
-            "return count",
-            "End"
-        ],
-        [
-            "Start",
-            "count = 0",
-            "for i in range(len(matrix))",
-            "for j in range(len(matrix[i]))",
-            "for i in range(len(matrix))",
-            "return count",
-            "End"
-        ],
-        [
-            "Start",
-            "count = 0",
-            "for i in range(len(matrix))",
-            "for j in range(len(matrix[i]))",
-            "if matrix[i][j] > 0",
-            "for j in range(len(matrix[i]))",
-            "for i in range(len(matrix))",
-            "return count",
-            "End"
-        ],
-        [
-            "Start",
-            "count = 0",
-            "for i in range(len(matrix))",
-            "for j in range(len(matrix[i]))",
-            "if matrix[i][j] > 0",
-            "for k in range(matrix[i][j])",
-            "count += k % 3",
-            "for k in range(matrix[i][j])",
-            "for j in range(len(matrix[i]))",
-            "for i in range(len(matrix))",
-            "return count",
-            "End"
-        ]
-    ]
-
-    for index, route in enumerate(routes, start=1):
-        print(f"Route {index}:")
-        print(" -> ".join(route))
-        print()
+    print("\nCyclomatic complexity:", complexity)
+    print("\nDOT file saved as cfg_ast.dot")
 
 
 # =========================
-# TASK 5: update_task_status()
+# TASK 6: authenticate_user()
 # =========================
-def build_cfg_task5():
+def build_cfg_task6():
     graph = nx.DiGraph()
 
     # CFG nodes
     graph.add_node("Start")
-    graph.add_node("valid_transitions = {...}")
-    graph.add_node('if task["status"] == new_status')
-    graph.add_node('return "No change"')
-    graph.add_node('if new_status not in valid_transitions.get(...)')
-    graph.add_node('return "Invalid transition"')
-    graph.add_node('if user_role not in ["admin", "manager"]\nand new_status == "closed"')
-    graph.add_node('return "Permission denied"')
-    graph.add_node('task["status"] = new_status')
-    graph.add_node('return "Updated"')
+    graph.add_node("if not username or not password")
+    graph.add_node('return "Missing credentials"')
+    graph.add_node("if username not in db")
+    graph.add_node('return "User not found"')
+    graph.add_node('attempts = db[username].get("attempts", 0)')
+    graph.add_node("if attempts >= 3")
+    graph.add_node('return "Account locked"')
+    graph.add_node('if db[username]["password"] != password')
+    graph.add_node('db[username]["attempts"] = attempts + 1')
+    graph.add_node('return "Invalid password"')
+    graph.add_node('db[username]["attempts"] = 0')
+    graph.add_node('return "Authenticated"')
     graph.add_node("End")
 
     # CFG edges
-    graph.add_edge("Start", "valid_transitions = {...}")
-
     graph.add_edge(
-        "valid_transitions = {...}",
-        'if task["status"] == new_status'
+        "Start",
+        "if not username or not password"
     )
 
     graph.add_edge(
-        'if task["status"] == new_status',
-        'return "No change"',
+        "if not username or not password",
+        'return "Missing credentials"',
         label="True"
     )
 
     graph.add_edge(
-        'if task["status"] == new_status',
-        'if new_status not in valid_transitions.get(...)',
+        "if not username or not password",
+        "if username not in db",
         label="False"
     )
 
     graph.add_edge(
-        'return "No change"',
+        'return "Missing credentials"',
         "End"
     )
 
     graph.add_edge(
-        'if new_status not in valid_transitions.get(...)',
-        'return "Invalid transition"',
+        "if username not in db",
+        'return "User not found"',
         label="True"
     )
 
     graph.add_edge(
-        'if new_status not in valid_transitions.get(...)',
-        'if user_role not in ["admin", "manager"]\nand new_status == "closed"',
+        "if username not in db",
+        'attempts = db[username].get("attempts", 0)',
         label="False"
     )
 
     graph.add_edge(
-        'return "Invalid transition"',
+        'return "User not found"',
         "End"
     )
 
     graph.add_edge(
-        'if user_role not in ["admin", "manager"]\nand new_status == "closed"',
-        'return "Permission denied"',
+        'attempts = db[username].get("attempts", 0)',
+        "if attempts >= 3"
+    )
+
+    graph.add_edge(
+        "if attempts >= 3",
+        'return "Account locked"',
         label="True"
     )
 
     graph.add_edge(
-        'if user_role not in ["admin", "manager"]\nand new_status == "closed"',
-        'task["status"] = new_status',
+        "if attempts >= 3",
+        'if db[username]["password"] != password',
         label="False"
     )
 
     graph.add_edge(
-        'return "Permission denied"',
+        'return "Account locked"',
         "End"
     )
 
     graph.add_edge(
-        'task["status"] = new_status',
-        'return "Updated"'
+        'if db[username]["password"] != password',
+        'db[username]["attempts"] = attempts + 1',
+        label="True"
     )
 
     graph.add_edge(
-        'return "Updated"',
+        'db[username]["attempts"] = attempts + 1',
+        'return "Invalid password"'
+    )
+
+    graph.add_edge(
+        'return "Invalid password"',
+        "End"
+    )
+
+    graph.add_edge(
+        'if db[username]["password"] != password',
+        'db[username]["attempts"] = 0',
+        label="False"
+    )
+
+    graph.add_edge(
+        'db[username]["attempts"] = 0',
+        'return "Authenticated"'
+    )
+
+    graph.add_edge(
+        'return "Authenticated"',
         "End"
     )
 
     return graph
 
 
-def draw_cfg_task5(graph):
-    # Manual positions for clear layout
+def draw_cfg_task6(graph):
     position = {
         "Start": (0, 10),
-        "valid_transitions = {...}": (0, 8),
 
-        'if task["status"] == new_status': (0, 6),
-        'return "No change"': (7.5, 6),
+        "if not username or not password": (0, 8),
+        'return "Missing credentials"': (8, 8),
 
-        'if new_status not in valid_transitions.get(...)': (0, 4),
-        'return "Invalid transition"': (7.5, 4),
+        "if username not in db": (0, 6),
+        'return "User not found"': (8, 6),
 
-        'if user_role not in ["admin", "manager"]\nand new_status == "closed"': (0, 2),
-        'return "Permission denied"': (7.5, 2),
+        'attempts = db[username].get("attempts", 0)': (0, 4),
 
-        'task["status"] = new_status': (0, 0),
-        'return "Updated"': (7.5, 0),
+        "if attempts >= 3": (0, 2),
+        'return "Account locked"': (8, 2),
+
+        'if db[username]["password"] != password': (0, 0),
+
+        'db[username]["attempts"] = attempts + 1': (4, -2),
+        'return "Invalid password"': (8, -2),
+
+        'db[username]["attempts"] = 0': (-4, -2),
+        'return "Authenticated"': (-8, -2),
 
         "End": (12, 3)
     }
 
-    plt.figure(figsize=(22, 13))
+    plt.figure(figsize=(26, 16))
 
     nx.draw(
         graph,
         position,
         with_labels=True,
-        node_size=4200,
-        font_size=8,
+        node_size=2800,
+        font_size=7,
         arrows=True,
-        arrowsize=22,
-        width=1.5
+        arrowsize=24,
+        width=1.7
     )
 
     edge_labels = nx.get_edge_attributes(graph, "label")
@@ -490,63 +250,80 @@ def draw_cfg_task5(graph):
         )
     )
 
-    plt.title(
-        "CFG for update_task_status()",
-        fontsize=18
-    )
-
+    plt.title("CFG for authenticate_user()", fontsize=18)
     plt.axis("off")
     plt.tight_layout()
-    plt.savefig("cfg_update_task_status.png", dpi=300)
+
+    plt.savefig("cfg_authenticate_user.png", dpi=300)
     plt.show()
 
-    print("CFG for Task 5 saved as cfg_update_task_status.png")
+    print("CFG saved as cfg_authenticate_user.png")
 
 
-def print_routes_task5():
-    print("Basic independent routes for Task 5:\n")
+def print_routes_task6():
+    print("\nBasic execution paths for authenticate_user():\n")
 
     routes = [
         [
             "Start",
-            "valid_transitions = {...}",
-            'if task["status"] == new_status',
-            'return "No change"',
+            "if not username or not password",
+            'return "Missing credentials"',
             "End"
         ],
         [
             "Start",
-            "valid_transitions = {...}",
-            'if task["status"] == new_status',
-            'if new_status not in valid_transitions.get(...)',
-            'return "Invalid transition"',
+            "if not username or not password",
+            "if username not in db",
+            'return "User not found"',
             "End"
         ],
         [
             "Start",
-            "valid_transitions = {...}",
-            'if task["status"] == new_status',
-            'if new_status not in valid_transitions.get(...)',
-            'if user_role not in ["admin", "manager"] and new_status == "closed"',
-            'return "Permission denied"',
+            "if not username or not password",
+            "if username not in db",
+            'attempts = db[username].get("attempts", 0)',
+            "if attempts >= 3",
+            'return "Account locked"',
             "End"
         ],
         [
             "Start",
-            "valid_transitions = {...}",
-            'if task["status"] == new_status',
-            'if new_status not in valid_transitions.get(...)',
-            'if user_role not in ["admin", "manager"] and new_status == "closed"',
-            'task["status"] = new_status',
-            'return "Updated"',
+            "if not username or not password",
+            "if username not in db",
+            'attempts = db[username].get("attempts", 0)',
+            "if attempts >= 3",
+            'if db[username]["password"] != password',
+            'db[username]["attempts"] = attempts + 1',
+            'return "Invalid password"',
+            "End"
+        ],
+        [
+            "Start",
+            "if not username or not password",
+            "if username not in db",
+            'attempts = db[username].get("attempts", 0)',
+            "if attempts >= 3",
+            'if db[username]["password"] != password',
+            'db[username]["attempts"] = 0',
+            'return "Authenticated"',
             "End"
         ]
     ]
 
     for index, route in enumerate(routes, start=1):
-        print(f"Route {index}:")
+        print(f"Path {index}:")
         print(" -> ".join(route))
         print()
+
+
+def calculate_cyclomatic_complexity_task6():
+    predicate_nodes = 4
+    complexity = predicate_nodes + 1
+
+    print("Cyclomatic complexity calculation:")
+    print("V(G) = P + 1")
+    print(f"P = {predicate_nodes}")
+    print(f"V(G) = {predicate_nodes} + 1 = {complexity}")
 
 
 # =========================
@@ -554,34 +331,30 @@ def print_routes_task5():
 # =========================
 def print_help():
     print("Usage:")
-    print("python cfg_builder.py 1   -> Task 1: process_data()")
-    print("python cfg_builder.py 2   -> Task 2: process_matrix()")
-    print("python cfg_builder.py 5   -> Task 5: update_task_status()")
+    print("python cfg_builder.py 6")
+    print("python cfg_builder.py ast <file.py>")
     print()
-    print("For each task:")
-    print("- CFG diagram will be built")
-    print("- routes will be printed")
+    print("Examples:")
+    print("python cfg_builder.py 6")
+    print("python cfg_builder.py ast src/auth.py")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print_help()
 
-    elif sys.argv[1] == "1":
-        cfg = build_cfg_task1()
-        draw_cfg_task1(cfg)
-        print_routes_task1(cfg)
+    elif sys.argv[1] == "6":
+        cfg = build_cfg_task6()
+        draw_cfg_task6(cfg)
+        print_routes_task6()
+        calculate_cyclomatic_complexity_task6()
 
-    elif sys.argv[1] == "2":
-        cfg = build_cfg_task2()
-        draw_cfg_task2(cfg)
-        print_routes_task2()
-
-    elif sys.argv[1] == "5":
-        cfg = build_cfg_task5()
-        draw_cfg_task5(cfg)
-        print_routes_task5()
+    elif sys.argv[1] == "ast":
+        if len(sys.argv) < 3:
+            print("Specify Python file.")
+        else:
+            analyze_python_file(sys.argv[2])
 
     else:
-        print("Unknown task number.")
+        print("Unknown command.")
         print_help()

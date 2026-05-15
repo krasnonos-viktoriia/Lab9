@@ -1,0 +1,93 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Condition Table Auth</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 8px 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #e6e6e6;
+        }
+
+        .true {
+            background-color: #d9f2d9;
+        }
+
+        .false {
+            background-color: #f2d9d9;
+        }
+    </style>
+</head>
+<body>
+    <h2>auth: not username or not password</h2>
+
+    <table>
+        <tr>
+            <th>A(not user)</th>
+            <th>B(not pwd)</th>
+            <th>A∨B</th>
+            <th>username</th>
+            <th>password</th>
+            <th>expected</th>
+        </tr>
+
+        <tr>
+            <td class="false">False</td>
+            <td class="false">False</td>
+            <td class="false">False</td>
+            <td>'alice'</td>
+            <td>'secret'</td>
+            <td>Authenticated</td>
+        </tr>
+
+        <tr>
+            <td class="false">False</td>
+            <td class="true">True</td>
+            <td class="true">True</td>
+            <td>'alice'</td>
+            <td>''</td>
+            <td>Missing credentials</td>
+        </tr>
+
+        <tr>
+            <td class="true">True</td>
+            <td class="false">False</td>
+            <td class="true">True</td>
+            <td>''</td>
+            <td>'secret'</td>
+            <td>Missing credentials</td>
+        </tr>
+
+        <tr>
+            <td class="true">True</td>
+            <td class="true">True</td>
+            <td class="true">True</td>
+            <td>''</td>
+            <td>''</td>
+            <td>Missing credentials</td>
+        </tr>
+
+    </table>
+</body>
+</html>
